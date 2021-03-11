@@ -1,15 +1,12 @@
-let conf = require('./conf.json').CONF;
-let imap = require('./conf.json').IMAP;
-
+let conf = require('./config/conf.json').CONF;
+let imap = require('./config/conf.json').IMAP;
+let sheetParams = require('./config/conf.json').SHEET;
 
 var MailListener = require("mail-listener2");
 
 
 const { GoogleSpreadsheet } = require("google-spreadsheet");
 const creds = require("./config/zoom-recording-tracker-6a8bd724ca99.json");
-const doc = new GoogleSpreadsheet(
-  conf.sheet
-);
 
 /* DIRTY REGEX FOR PULLING THE URL AND PASSWORD */
 const regex = /(?<=share this recording with viewers\:\n)(.*)|(?<=Passcode\:\n)(.*)/g;
@@ -50,7 +47,6 @@ mailListener.on("mail", async function (mail, seqno, attributes) {
   if (mail.from[0].address == conf.email && mail.subject == conf.catchSubject) {
     let parsedMessage = mail.text.match(regex);
     if (parsedMessage && parsedMessage.length === 2){
-      console.log(parsedMessage); 
       try {
         let sheet = await sheetsConnect();
         await updateRow(sheet, parsedMessage);
@@ -66,9 +62,9 @@ mailListener.on("mail", async function (mail, seqno, attributes) {
   column = column id to check for empty val
   start = header column position (i.e. "URL" )
 */
-function firstEmptyRow(sheet, column = 3, start = 2) {
-  for (let i = start; i < sheet.gridProperties.rowCount; i++) {
-    let thisCell = sheet.getCell(i, column);
+function firstEmptyRow(sheet) {
+  for (let i = sheetParams.headerRow; i < sheet.gridProperties.rowCount; i++) {
+    let thisCell = sheet.getCell(i, sheetParams.urlCol);
     if (thisCell.value === null) {
       return i;
     }
@@ -81,10 +77,10 @@ async function updateRow(sheet, parsedMessage, topic="UPDATE TOPIC") {
   try {
     await sheet.loadCells("A:D");
     let newRow = firstEmptyRow(sheet);
-    sheet.getCell(newRow, 0).value = new Date().getDateForHTML();
-    sheet.getCell(newRow, 1).value = topic;
-    sheet.getCell(newRow, 2).value = parsedMessage[1];
-    sheet.getCell(newRow, 3).value = parsedMessage[0];
+    sheet.getCell(newRow, sheetParams.dateCol).value = new Date().getDateForHTML();
+    sheet.getCell(newRow, 1).value = require('./topic.json').TOPIC;
+    sheet.getCell(newRow, sheetParams.passCol).value = parsedMessage[1];
+    sheet.getCell(newRow, sheetParams.urlCol).value = parsedMessage[0];
     sheet.saveUpdatedCells();
   } catch (err) {
     console.log(err);
@@ -93,6 +89,7 @@ async function updateRow(sheet, parsedMessage, topic="UPDATE TOPIC") {
 
 async function sheetsConnect() {
   try {
+    const doc = new GoogleSpreadsheet(sheetParams.id);
     await doc.useServiceAccountAuth(creds);
     await doc.loadInfo();
     return doc.sheetsByIndex[0];

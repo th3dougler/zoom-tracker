@@ -11,10 +11,10 @@ let imap = require('./conf.json').IMAP;
 # install:
 
 ```
-cd zoom-recording-tracker
+cd zoom-tracker
 npm i
 
-nano public/app.json
+nano conf.json
 // update imap auth info
 ```
 

@@ -2,7 +2,10 @@
 # req's:
 ask doug for
 ```
-const creds = require("../config/zoom-recording-tracker-6a8bd724ca99.json");
+const creds = require("./config/zoom-recording-tracker-6a8bd724ca99.json");
+let conf = require('./conf.json').CONF;
+let imap = require('./conf.json').IMAP;
+
 ```
 
 # install:

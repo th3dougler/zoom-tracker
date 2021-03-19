@@ -16,6 +16,8 @@ npm i
 
 nano conf.json
 // update imap auth info
+
+node index
 ```
 
 

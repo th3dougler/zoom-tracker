@@ -1,9 +1,8 @@
-let conf = require('./config/conf.json').CONF;
-let imap = require('./config/conf.json').IMAP;
-let sheetParams = require('./config/conf.json').SHEET;
-
-var MailListener = require("mail-listener2");
-
+let conf = require("./config/conf.json").CONF;
+let imapEnv = require("./config/conf.json").IMAP;
+let sheetParams = require("./config/conf.json").SHEET;
+let inbox = require("inbox");
+const simpleParser = require('mailparser').simpleParser;
 
 const { GoogleSpreadsheet } = require("google-spreadsheet");
 const creds = require("./config/zoom-recording-tracker-6a8bd724ca99.json");
@@ -12,49 +11,48 @@ const creds = require("./config/zoom-recording-tracker-6a8bd724ca99.json");
 const regex = /(?<=share this recording with viewers\:\n)(.*)|(?<=Passcode\:\n)(.*)/g;
 /* ----------------------------- */
 // readXML.loadDoc();
-
-
-var mailListener = new MailListener({
-  username: imap.name,
-  password: imap.pass,
-  host: imap.host,
-  port: imap.port, // imap port
-  tls: true,
-  connTimeout: 10000, // Default by node-imap
-  authTimeout: 5000, // Default by node-imap,
-  debug: console.log, // Or your custom function with only one incoming argument. Default: null
-  tlsOptions: { rejectUnauthorized: false },
-  mailbox: "INBOX", // mailbox to monitor
-  markSeen: false, // all fetched email willbe marked as seen and not fetched next time
-  attachments: false,
+var client = inbox.createConnection(false, imapEnv.host, {
+  secureConnection: true,
+  auth: {
+    user: imapEnv.name,
+    pass: imapEnv.pass,
+  },
 });
 
-mailListener.start(); // start listening
-mailListener.on("server:connected", function () {
-  console.log("imapConnected");
+client.connect();
+
+client.on("connect", function () {
+  console.log(`connected to ${imapEnv.host}`);
+  client.openMailbox("INBOX", { readOnly: true }, function (error, info) {
+    if (error) throw error;
+    console.log("listening on inbox");
+  });
 });
 
-mailListener.on("server:disconnected", function () {
-  console.log("imapDisconnected");
-});
+client.on("new", async function (message) {
 
-mailListener.on("error", function (err) {
-  console.log(err);
-});
-
-mailListener.on("mail", async function (mail, seqno, attributes) {
-  let newMessage = "";
-  if (mail.from[0].address == conf.email && mail.subject == conf.catchSubject) {
-    let parsedMessage = mail.text.match(regex);
-    if (parsedMessage && parsedMessage.length === 2){
-      try {
-        let sheet = await sheetsConnect();
-        await updateRow(sheet, parsedMessage);
-      } catch (err) {
-        console.log(err);
-      }
-      
-    } 
+  try {
+    let messageStream = await client.createMessageStream(message.UID);
+    let messageParsed = await simpleParser(messageStream);
+    //body: messageParsed.text 
+    //from: messageParsed.from
+    //subject: messageParsed.subject
+    
+     if (message.from.address == conf.email && messageParsed.subject == conf.catchSubject) {
+      let bodyParsed = messageParsed.text.match(regex);
+      if (bodyParsed && bodyParsed.length === 2){
+        try {
+          let sheet = await sheetsConnect();
+          await updateRow(sheet, bodyParsed);
+        } catch (err) {
+          console.log(err);
+        }
+        
+      } 
+    }
+    
+  } catch (err) {
+    console.log(err);
   }
 });
 
@@ -73,12 +71,15 @@ function firstEmptyRow(sheet) {
 /* 
   using first empty row, populate with values passed from imap checker
 */
-async function updateRow(sheet, parsedMessage, topic="UPDATE TOPIC") {
+async function updateRow(sheet, parsedMessage, topic = "UPDATE TOPIC") {
   try {
     await sheet.loadCells("A:D");
     let newRow = firstEmptyRow(sheet);
-    sheet.getCell(newRow, sheetParams.dateCol).value = new Date().getDateForHTML();
-    sheet.getCell(newRow, 1).value = require('./topic.json').TOPIC;
+    sheet.getCell(
+      newRow,
+      sheetParams.dateCol
+    ).value = new Date().getDateForHTML();
+    sheet.getCell(newRow, 1).value = require("./topic.json").TOPIC;
     sheet.getCell(newRow, sheetParams.passCol).value = parsedMessage[1];
     sheet.getCell(newRow, sheetParams.urlCol).value = parsedMessage[0];
     sheet.saveUpdatedCells();
@@ -102,4 +103,3 @@ Date.prototype.getDateForHTML = function () {
     .toString()
     .padStart(2, "0")}/${this.getUTCDate().toString().padStart(2, "0")}`;
 };
-

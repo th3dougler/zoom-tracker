@@ -34,12 +34,14 @@ client.on("new", async function (message) {
   try {
     let messageStream = await client.createMessageStream(message.UID);
     let messageParsed = await simpleParser(messageStream);
-    //body: messageParsed.text 
-    //from: messageParsed.from
-    //subject: messageParsed.subject
-    
-     if (message.from.address == conf.email && messageParsed.subject == conf.catchSubject) {
-      let bodyParsed = messageParsed.text.match(regex);
+    let email = {
+      from: String(messageParsed.from.address),
+      subject: String(messageParsed.subject),
+      body: String(messageParsed.text)
+    }
+
+     if (email.from.toUpperCase() == conf.email.toUpperCase() && email.subject.toUpperCase() == conf.catchSubject.toUpperCase()) {
+      let bodyParsed = email.body.match(regex);
       if (bodyParsed && bodyParsed.length === 2){
         try {
           let sheet = await sheetsConnect();
@@ -48,7 +50,11 @@ client.on("new", async function (message) {
           console.log(err);
         }
         
-      } 
+      } else{
+        console.log("email/subject passed, invalid body...","email:", email,"parsed body:", bodyParsed)
+      }
+    } else{
+      console.log("email/subject failed","email:", email,"expected:",conf.email, ", ", conf.catchSubject )
     }
     
   } catch (err) {

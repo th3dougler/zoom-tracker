@@ -9,7 +9,8 @@ const { GoogleSpreadsheet } = require("google-spreadsheet");
 const creds = require("./config/zoom-recording-tracker-6a8bd724ca99.json");
 
 /* DIRTY REGEX FOR PULLING THE URL AND PASSWORD */
-const regex = /(?<=share this recording with viewers\:\n)(.*)|(?<=Passcode\:\n)(.*)/g;
+//const regex = /(?<=share this recording with viewers\:\n[<]a href=["])(.*)|(?<=Passcode\:\n)(.*)/g;
+const regex = /(share this recording with viewers(.|\n)*)">((.|\n)*)(<\/a>)(.|\n)*Passcode: (.*)/g;
 /* ----------------------------- */
 // readXML.loadDoc();
 
@@ -45,7 +46,11 @@ mailListener.on("error", function (err) {
 mailListener.on("mail", async function (mail, seqno, attributes) {
   let newMessage = "";
   if (mail.from[0].address == conf.email && mail.subject == conf.catchSubject) {
-    let parsedMessage = mail.text.match(regex);
+    console.log("mail:", mail)
+    mail.html = mail.html.replace(/<br\/>/g, '')
+    console.log("***mail.html with linebreaks replaced***", mail.html)
+    let parsedMessage = mail.html.match(regex);
+    console.log("parsed message:", parsedMessage)
     if (parsedMessage && parsedMessage.length === 2){
       try {
         let sheet = await sheetsConnect();
@@ -54,7 +59,9 @@ mailListener.on("mail", async function (mail, seqno, attributes) {
         console.log(err);
       }
       
-    } 
+    } else {
+     console.log("FAILED TO MATCH REGEX")
+    }
   }
 });
 

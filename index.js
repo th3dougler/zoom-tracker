@@ -10,7 +10,7 @@ const creds = require("./config/zoom-recording-tracker-6a8bd724ca99.json");
 
 /* DIRTY REGEX FOR PULLING THE URL AND PASSWORD */
 //const regex = /(?<=share this recording with viewers\:\n[<]a href=["])(.*)|(?<=Passcode\:\n)(.*)/g;
-const regex = /(share this recording with viewers(.|\n)*)">((.|\n)*)(<\/a>)(.|\n)*Passcode: (.*)/g;
+const regex = /share this recording with viewers((.|\n)*)">((.|\n)*)(<\/a>)((.|\n)*)Passcode: (.*)/g;
 /* ----------------------------- */
 // readXML.loadDoc();
 
@@ -49,12 +49,17 @@ mailListener.on("mail", async function (mail, seqno, attributes) {
     console.log("mail:", mail)
     mail.html = mail.html.replace(/<br\/>/g, '')
     console.log("***mail.html with linebreaks replaced***", mail.html)
-    let parsedMessage = mail.html.match(regex);
-    console.log("parsed message:", parsedMessage)
-    if (parsedMessage && parsedMessage.length === 2){
+    // matchAll gives you regex groups, and then we convert to array:q
+    let parsedMessage = mail.html.matchAll(regex);
+    console.log("parsed message:", JSON.stringify(parsedMessage))
+    parsedMessage = [...parsedMessage]; // convert to array
+    console.log("parsed message array:", parsedMessage)
+    if (parsedMessage && parsedMessage[0].length > 8){
       try {
         let sheet = await sheetsConnect();
-        await updateRow(sheet, parsedMessage);
+        let password = parsedMessage[0][8];
+        let url = parsedMessage[0][3];
+        await updateRow(sheet, password, url);
       } catch (err) {
         console.log(err);
       }
@@ -80,14 +85,14 @@ function firstEmptyRow(sheet) {
 /* 
   using first empty row, populate with values passed from imap checker
 */
-async function updateRow(sheet, parsedMessage, topic="UPDATE TOPIC") {
+async function updateRow(sheet, password, url, topic="UPDATE TOPIC") {
   try {
     await sheet.loadCells("A:D");
     let newRow = firstEmptyRow(sheet);
     sheet.getCell(newRow, sheetParams.dateCol).value = new Date().getDateForHTML();
-    sheet.getCell(newRow, 1).value = require('./topic.json').TOPIC;
-    sheet.getCell(newRow, sheetParams.passCol).value = parsedMessage[1];
-    sheet.getCell(newRow, sheetParams.urlCol).value = parsedMessage[0];
+    sheet.getCell(newRow, 1).value = require('./config/topic.json').TOPIC;
+    sheet.getCell(newRow, sheetParams.passCol).value = password;
+    sheet.getCell(newRow, sheetParams.urlCol).value = url;
     sheet.saveUpdatedCells();
   } catch (err) {
     console.log(err);

@@ -110,7 +110,7 @@ async function sheetsConnect() {
   }
 }
 Date.prototype.getDateForHTML = function () {
-  return `${this.getUTCFullYear()}/${(this.getUTCMonth() + 1)
+  return `${this.toLocaleString('en-us', {weekday: 'long' })}, ${this.getUTCFullYear()}/${(this.getUTCMonth() + 1)
     .toString()
     .padStart(2, "0")}/${this.getDate().toString().padStart(2, "0")}`;
 };

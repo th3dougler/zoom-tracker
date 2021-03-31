@@ -75,7 +75,7 @@ mailListener.on("mail", async function (mail, seqno, attributes) {
   start = header column position (i.e. "URL" )
 */
 function firstEmptyRow(sheet) {
-  for (let i = sheetParams.headerRow; i < sheet.gridProperties.rowCount; i++) {
+  for (let i = 5; i < sheet.gridProperties.rowCount; i++) {
     let thisCell = sheet.getCell(i, sheetParams.urlCol);
     if (thisCell.value === null) {
       return i;

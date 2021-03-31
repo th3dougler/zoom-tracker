@@ -112,6 +112,6 @@ async function sheetsConnect() {
 Date.prototype.getDateForHTML = function () {
   return `${this.getUTCFullYear()}/${(this.getUTCMonth() + 1)
     .toString()
-    .padStart(2, "0")}/${this.getUTCDate().toString().padStart(2, "0")}`;
+    .padStart(2, "0")}/${this.getDate().toString().padStart(2, "0")}`;
 };
 
